@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>EuroStation Hunter</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        body { background-color: #0b0d10; color: #e2e8f0; font-family: ui-sans-serif, system-ui, sans-serif; margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100%; background: #11141a; }
+        
+        /* High-contrast dark theme canvas styling overrides */
+        .leaflet-layer, .leaflet-control-zoom-in, .leaflet-control-zoom-out {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+        
+        /* Smooth Mobile Bottom Drawer Sheet Transition Hooks */
+        @media (max-width: 768px) {
+            .mobile-sheet {
+                transform: translateY(calc(100% - 64px));
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            .mobile-sheet.open {
+                transform: translateY(0);
+            }
+        }
+        
+        /* Leaflet Pop-up Template Card Customization Rules */
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #171b24 !important; border: 1px solid #2d3545; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important; }
+        .leaflet-popup-content { margin: 0 !important; width: auto !important; }
+        .leaflet-popup-close-button { color: #ffffff !important; top: 8px !important; right: 8px !important; font-size: 16px !important; z-index: 50; }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row h-screen overflow-hidden select-none">
+
+    <div id="sidebar" class="mobile-sheet fixed md:relative bottom-0 left-0 right-0 md:bottom-auto md:left-auto md:right-auto w-full md:w-80 bg-[#0f1115] p-5 flex flex-col justify-between z-[9999] shadow-[0_-10px_25px_rgba(0,0,0,0.5)] md:shadow-2xl border-t md:border-t-0 md:border-r border-[#1f242e] h-[70vh] md:h-full rounded-t-3xl md:rounded-t-none">
+        
+        <div class="w-16 h-1 bg-[#2d3545] rounded-full mx-auto mb-4 md:hidden cursor-pointer" onclick="toggleMobileSheet()"></div>
+        
+        <div class="overflow-y-auto pr-1 flex-1">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-emerald-500 text-2xl">⛽</span>
+                    <h1 class="text-lg font-black tracking-wider text-white">EUROSTATION <span class="text-xs text-gray-500">V1.5</span></h1>
+                </div>
+                <button onclick="toggleMobileSheet()" class="md:hidden text-xs text-emerald-400 font-bold bg-[#171b24] px-3 py-1.5 rounded-xl border border-[#2d3545]">
+                    Filters Panel
+                </button>
+            </div>
+
+            <div class="mb-5">
+                <input id="city-search" type="text" placeholder="Search city or region..." class="w-full bg-[#171b24] border border-[#2d3545] rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition">
+            </div>
+
+            <div class="mb-3 flex justify-between text-xs text-gray-400 font-bold tracking-widest">
+                <span>RETAIL CHAINS</span>
+                <div class="gap-2 flex">
+                    <button onclick="toggleAllFilters(true)" class="hover:text-emerald-400 transition">ALL</button> | 
+                    <button onclick="toggleAllFilters(false)" class="hover:text-emerald-400 transition">NONE</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-1 gap-3 text-sm font-semibold text-gray-300">
+                <label class="flex items-center gap-3 cursor-pointer p-1.5 hover:bg-[#171b24] rounded-lg transition"><input type="checkbox" checked value="orlen" class="brand-filter accent-orange-600 w-4 h-4"> <span class="w-3 h-3 rounded-full bg-orange-600"></span> Orlen / Benzina</label>
+                <label class="flex items-center gap-3 cursor-pointer p-1.5 hover:bg-[#171b24] rounded-lg transition"><input type="checkbox" checked value="shell" class="brand-filter accent-yellow-500 w-4 h-4"> <span class="w-3 h-3 rounded-full bg-yellow-500"></span> Shell</label>
+                <label class="flex items-center gap-3 cursor-pointer p-1.5 hover:bg-[#171b24] rounded-lg transition"><input type="checkbox" checked value="omv" class="brand-filter accent-blue-500 w-4 h-4"> <span class="w-3 h-3 rounded-full bg-blue-500"></span> OMV</label>
+                <label class="flex items-center gap-3 cursor-pointer p-1.5 hover:bg-[#171b24] rounded-lg transition"><input type="checkbox" checked value="mol" class="brand-filter accent-green-500 w-4 h-4"> <span class="w-3 h-3 rounded-full bg-green-500"></span> MOL</label>
+                <label class="flex items-center gap-3 cursor-pointer p-1.5 hover:bg-[#171b24] rounded-lg transition"><input type="checkbox" checked value="bp" class="brand-filter accent-emerald-400 w-4 h-4"> <span class="w-3 h-3 rounded-full bg-emerald-400"></span> BP</label>
+                <label class="flex items-center gap-3 cursor-pointer p-1.5 hover:bg-[#171b24] rounded-lg transition"><input type="checkbox" checked value="eni" class="brand-filter accent-yellow-600 w-4 h-4"> <span class="w-3 h-3 rounded-full bg-yellow-600"></span> Eni / Agip</label>
+                <label class="flex items-center gap-3 cursor-pointer p-1.5 hover:bg-[#171b24] rounded-lg transition"><input type="checkbox" checked value="esso" class="brand-filter accent-red-500 w-4 h-4"> <span class="w-3 h-3 rounded-full bg-red-500"></span> Esso</label>
+                <label class="flex items-center gap-3 cursor-pointer p-1.5 hover:bg-[#171b24] rounded-lg transition"><input type="checkbox" checked value="other" class="brand-filter accent-gray-500 w-4 h-4"> <span class="w-3 h-3 rounded-full bg-gray-500"></span> Independents</label>
+            </div>
+        </div>
+
+        <div class="pt-4 border-t border-[#1f242e] text-xs text-gray-400 space-y-1.5 mt-2 md:mt-0">
+            <div class="flex justify-between"><span>Active map cluster nodes:</span> <span id="count-visible" class="text-emerald-400 font-bold">0</span></div>
+            <div class="flex justify-between"><span>Gross system bounds fetch:</span> <span id="count-total" class="text-emerald-400 font-bold">0</span></div>
+        </div>
+    </div>
+
+    <div class="flex-1 relative h-full w-full">
+        <button onclick="scanGridArea()" class="absolute top-4 left-4 md:left-16 z-[1000] bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-3 rounded-xl shadow-xl flex items-center gap-2.5 transition text-sm tracking-wide active:scale-95">
+            🔍 Scan Grid Area
+        </button>
+        <div id="map"></div>
+    </div>
+
+    <script>
+        // Init Map Focus Framework Area
+        const map = L.map('map', { zoomControl: false }).setView([48.72, 16.95], 11); 
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        let allStations = [];
+        let markersGroup = L.layerGroup().addTo(map);
+
+        function toggleMobileSheet() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // LOOKS FOR YOUR NEW .JPG IMAGES ON YOUR DESKTOP
+        function getBrandImage(category) {
+            const images = {
+                orlen: 'orlen.jpg',
+                shell: 'shell.jpg',
+                omv: 'omv.jpg',
+                mol: 'mol.jpg',
+                bp: 'bp.jpg',
+                eni: 'eni.jpg',
+                esso: 'esso.jpg',
+                other: 'other.jpg'
+            };
+            return images[category] || images.other;
+        }
+
+        // IDENTITY PARSER ENGINE
+        function getBrandCategory(tags) {
+            if (!tags) return 'other';
+            
+            const coreBrandInfo = `
+                ${tags.brand || ''} 
+                ${tags.name || ''} 
+                ${tags.operator || ''} 
+                ${tags['brand:en'] || ''} 
+                ${tags['operator:en'] || ''}
+            `.toLowerCase().trim();
+            
+            if (!coreBrandInfo) return 'other';
+            
+            if (coreBrandInfo.includes('orlen') || coreBrandInfo.includes('benzina')) return 'orlen';
+            if (coreBrandInfo.includes('shell')) return 'shell';
+            if (coreBrandInfo.includes('omv')) return 'omv';
+            if (coreBrandInfo.includes('mol')) return 'mol'; 
+            if (coreBrandInfo.includes('bp')) return 'bp';
+            if (coreBrandInfo.includes('eni') || coreBrandInfo.includes('agip')) return 'eni';
+            if (coreBrandInfo.includes('esso')) return 'esso';
+            
+            return 'other';
+        }
+
+        function getMarkerColor(category) {
+            const colors = {
+                orlen: '#ea580c', shell: '#eab308', omv: '#3b82f6', mol: '#10b981',
+                bp: '#34d399', eni: '#ca8a04', esso: '#ef4444', other: '#6b7280'
+            };
+            return colors[category] || colors.other;
+        }
+
+        // Overpass Data Fetch Pipeline Setup
+        async function scanGridArea() {
+            const bounds = map.getBounds();
+            const query = `[out:json][timeout:25];nwr["amenity"="fuel"](${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()});out center;`;
+            const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                allStations = data.elements || [];
+                document.getElementById('count-total').innerText = allStations.length;
+                renderMarkers();
+                
+                document.getElementById('sidebar').classList.remove('open');
+            } catch (error) {
+                console.error(error);
+                alert("API timeout response received. Zoom closer into current map grid frame.");
+            }
+        }
+
+        function renderMarkers() {
+            markersGroup.clearLayers();
+            const activeFilters = Array.from(document.querySelectorAll('.brand-filter:checked')).map(cb => cb.value);
+            let visibleCount = 0;
+
+            allStations.forEach(station => {
+                const tags = station.tags || {};
+                const displayTitle = tags.name || tags.brand || tags.operator || 'Independent Station';
+                const category = getBrandCategory(tags);
+
+                if (activeFilters.includes(category)) {
+                    visibleCount++;
+                    const color = getMarkerColor(category);
+
+                    const latitude = station.lat || (station.center ? station.center.lat : null);
+                    const longitude = station.lon || (station.center ? station.center.lon : null);
+
+                    if (latitude && longitude) {
+                        const marker = L.circleMarker([latitude, longitude], {
+                            radius: 9, fillColor: color, color: '#ffffff', weight: 2, fillOpacity: 0.95
+                        });
+
+                        // Popup card pulls images straight from your Desktop background folder context
+                        const popupContent = `
+                            <div class="bg-[#0f1115] text-white p-0 rounded-2xl overflow-hidden w-[210px]">
+                                <img src="${getBrandImage(category)}" class="w-full h-24 object-cover m-0" alt="station view" onerror="this.src='other.jpg'">
+                                <div class="p-3">
+                                    <h3 class="text-sm font-black m-0 tracking-wide text-white truncate">${displayTitle}</h3>
+                                    <div class="text-[9px] bg-[#171b24] text-emerald-400 font-bold px-2 py-0.5 rounded-lg mt-2 uppercase tracking-widest inline-block border border-[#2d3545]">
+                                        NETWORK: ${category.toUpperCase()}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                        marker.bindPopup(popupContent);
+                        markersGroup.addLayer(marker);
+                    }
+                }
+            });
+            document.getElementById('count-visible').innerText = visibleCount;
+        }
+
+        function toggleAllFilters(status) {
+            document.querySelectorAll('.brand-filter').forEach(cb => cb.checked = status);
+            renderMarkers();
+        }
+
+        document.querySelectorAll('.brand-filter').forEach(cb => cb.addEventListener('change', renderMarkers));
+
+        // Nominatim Geocoding Location Search Hook
+        document.getElementById('city-search').addEventListener('keypress', async function(e) {
+            if (e.key === 'Enter') {
+                const query = this.value;
+                if (!query) return;
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+                    if (data && data.length > 0) map.setView([data[0].lat, data[0].lon], 13);
+                } catch(err) { console.error(err); }
+            }
+        });
+    </script>
+</body>
+</html>
