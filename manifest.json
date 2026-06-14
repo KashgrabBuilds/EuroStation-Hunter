@@ -1,0 +1,16 @@
+{
+  "name": "EuroStation Hunter",
+  "short_name": "EuroStation",
+  "start_url": "/EuroStation-Hunter/",
+  "display": "standalone",
+  "background_color": "#0b0d10",
+  "theme_color": "#10b981",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "other.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
